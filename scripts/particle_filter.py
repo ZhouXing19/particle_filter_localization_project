@@ -18,6 +18,10 @@ import math
 
 from random import randint, random
 
+# Import likelihood_field.py
+from likelihood_field import LikelihoodField
+import sys
+
 
 
 def get_yaw_from_pose(p):
@@ -33,11 +37,16 @@ def get_yaw_from_pose(p):
     return yaw
 
 
-def draw_random_sample():
+def draw_random_sample(arr):
     """ Draws a random sample of n elements from a given list of choices and their specified probabilities.
     We recommend that you fill in this function using random_sample.
     """
     # TODO
+    # Uses random_sample function from numpy.random
+    #sample = self.num_particles * random_sample() + 1
+
+    # Uses random.choice to populate a random sample of num_particles elements from particle_cloud based on p
+    arr = np.random.choice(arr, size=len(arr), p=[part.w for part in arr])
     return
 
 
@@ -122,9 +131,40 @@ class ParticleFilter:
     
 
     def initialize_particle_cloud(self):
-        
         # TODO
 
+        try:
+            # Need to create an instance of the LikelihoodField class before calling its methods
+            lf = LikelihoodField()
+
+            # Get the upper and lower x and y range
+            ((x_lb, x_ub), (y_lb, y_ub)) = lf.get_obstacle_bounding_box()
+
+            # For each particle, set a random position and orientation (uniformly distributed)
+            for i in range(self.num_particles):
+                # https://www.programcreek.com/python/example/88501/geometry_msgs.msg.Pose
+                new_pose = Pose()
+
+                # Positions
+                new_pose.position = Point()
+                new_pose.position.x = np.random.uniform(x_lb, x_ub)
+                new_pose.position.y = np.random.uniform(y_lb, y_ub)
+                new_pose.position.z = 0
+
+                # Orientations
+                new_pose.orientation = Quaternion()
+                q = quaternion_from_euler(0.0, 0.0, np.random.uniform(0, 361))
+                new_pose.orientation.x = q[0]
+                new_pose.orientation.y = q[1]
+                new_pose.orientation.z = q[2]
+                new_pose.orientation.w = q[3]
+
+                # Add the particle to the cloud with initial weight 1
+                new_particle = Particle(new_pose, 1.0)
+                self.particle_cloud.append(new_particle)
+
+        except:
+            print("Unexpected error in initialize_particle_cloud:", sys.exc_info()[0])
 
         self.normalize_particles()
 
@@ -133,13 +173,18 @@ class ParticleFilter:
 
     def normalize_particles(self):
         # make all the particle weights sum to 1.0
-        
         # TODO
+        # Get the current sum of the particle weights
+        particle_weight_total = sum([part.w for part in self.particle_cloud])
 
+        # For each particle, normalize its weight by dividing it by the sum total of all weights
+        for part in self.particle_cloud:
+            part.w = part.w / particle_weight_total
+
+        return
 
 
     def publish_particle_cloud(self):
-
         particle_cloud_pose_array = PoseArray()
         particle_cloud_pose_array.header = Header(stamp=rospy.Time.now(), frame_id=self.map_topic)
         particle_cloud_pose_array.poses
@@ -162,9 +207,9 @@ class ParticleFilter:
 
 
     def resample_particles(self):
-
         # TODO
 
+        return
 
 
     def robot_scan_received(self, data):
@@ -243,12 +288,12 @@ class ParticleFilter:
         # based on the particles within the particle cloud, update the robot pose estimate
         
         # TODO
+        return
 
-
-    
     def update_particle_weights_with_measurement_model(self, data):
 
         # TODO
+        return
 
 
         
@@ -259,6 +304,7 @@ class ParticleFilter:
         # all of the particles correspondingly
 
         # TODO
+        return
 
 
 
