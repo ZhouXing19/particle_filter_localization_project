@@ -18,6 +18,10 @@ import math
 
 from random import randint, random
 
+import sys
+
+# import ourown likelihood field
+from likehood_field import LikelihoodField
 
 
 def get_yaw_from_pose(p):
@@ -43,7 +47,8 @@ def draw_random_sample():
 
 class Particle:
 
-    def __init__(self, pose, w):
+    def __init__(self, pose, w=1):
+        # Default (initial weight: 1)
 
         # particle pose (Pose object from geometry_msgs)
         self.pose = pose
@@ -64,6 +69,9 @@ class ParticleFilter:
 
         # initialize this particle filter node
         rospy.init_node('turtlebot3_particle_filter')
+
+        # Give 1s for initialization
+        rospy.sleep(1)
 
         # set the topic names and frame names
         self.base_frame = "base_footprint"
@@ -119,10 +127,25 @@ class ParticleFilter:
     def get_map(self, data):
 
         self.map = data
-    
+        self.likelihood_field = LikelihoodField(data)
+        
+        # give 2s for map loading
+        rospy.sleep(2)
 
     def initialize_particle_cloud(self):
         
+        try:
+            ((x_lb, x_ub), (y_lb, y_ub)) = self.likelihood_field.get_obstacle_bounding_box()
+            for _ in range(self.num_particles):
+                # https://www.programcreek.com/python/example/88501/geometry_msgs.msg.Pose
+                new_pose = Pose()
+                new_pose.position.x = np.random.uniform(x_lb, x_ub)
+                new_pose.position.y = np.random.uniform(y_lb, y_ub)
+                new_particle = Particle(new_pose)
+                self.particle_cloud.append(new_particle)
+
+        except:
+            print("Unexpected error in initialize_particle_cloud:", sys.exc_info()[0])
         # TODO
 
 
