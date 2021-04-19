@@ -132,73 +132,95 @@ class ParticleFilter:
     def get_map(self, data):
         '''
         data: OccupancyGrid
+
+        The map will be built in the OccupancyGrid message. Instead of a two dimensional grid, the data is stored in a one-dimensional vector (OccupancyGrid.data). We translate a pair of integer coordinates with the two_d_2_one_d_idx(x,y,size_x) function in geometry.py
+
+        The size_x, in this case, should be the width of the map: https://answers.ros.org/question/205521/robot-coordinates-in-map/
         '''
-        print(f"in get_map, type(data) = {type(data)}") #  <class 'nav_msgs.msg._OccupancyGrid.OccupancyGrid'>
+
+
+        # print(f"in get_map, type(data) = {type(data)}") #  <class 'nav_msgs.msg._OccupancyGrid.OccupancyGrid'>
 
         # https://www.programcreek.com/python/example/95997/nav_msgs.msg.OccupancyGrid (example 3)
+
         self.map = data
         self.map_origin = np.array([data.info.origin.position.x, data.info.origin.position.y])
         self.map_width, self.map_height = data.info.width, data.info.height
         self.map_resolution_factor = 1 / data.info.resolution
 
+        # print(f"map_origin: {self.map_origin}, map_size: ({self.map_width},{self.map_height}), \
+        #         map_resolution_factor: {self.map_resolution_factor}") 
+                # map_origin: [-10. -10.], map_size: (384,384), map_resolution_factor: 19.99999970197678
+
+
+        # print(f"type of self.map.data: {type(self.map.data)}") # tuple
+        # print(f"size of self.map.data: {len(self.map.data)}") # 147456
+
+    def two_d_2_one_d_idx(self, x, y, width):
+        # The data are saved as 1-D tuples. To convert the 2-D tuple to 1-D: 
+        # https://github.com/RobotTeaching/COMP4034/wiki/Workshop-6:-Minitask-4-(Marked)#task-4-keep-track-of-your-moves-via-mapping
+        return x + y * width
+
+    def abs_loc_2_map_loc(self, x, y):
+        pose_in_map_x = int((x - self.map_origin[0]) * self.map_resolution_factor)
+        pose_in_map_y = int((y - self.map_origin[1]) * self.map_resolution_factor)
+        return pose_in_map_x, pose_in_map_y
 
     
 
     def initialize_particle_cloud(self):
         # TODO
 
-        try:
-            # Need to create an instance of the LikelihoodField class before calling its methods
-            lf = LikelihoodField()
+        
+        # Need to create an instance of the LikelihoodField class before calling its methods
+        lf = LikelihoodField()
 
-            # Get the upper and lower x and y range
-            ((x_lb, x_ub), (y_lb, y_ub)) = lf.get_obstacle_bounding_box()
+        # Get the upper and lower x and y range
+        ((x_lb, x_ub), (y_lb, y_ub)) = lf.get_obstacle_bounding_box()
 
-            # For each particle, set a random position and orientation (uniformly distributed)
-            for i in range(self.num_particles):
-                # https://www.programcreek.com/python/example/88501/geometry_msgs.msg.Pose
-                new_pose = Pose()
+        # For each particle, set a random position and orientation (uniformly distributed)
+        for i in range(self.num_particles):
+            # https://www.programcreek.com/python/example/88501/geometry_msgs.msg.Pose
+            new_pose = Pose()
 
-                # Positions
-                new_pose.position = Point()
+            # Positions
+            new_pose.position = Point()
+            new_pose.position.x = np.random.uniform(x_lb, x_ub)
+            new_pose.position.y = np.random.uniform(y_lb, y_ub)
+
+            # Evaluate if the new_pose is out of map
+
+            # https://answers.ros.org/question/201172/get-xy-coordinates-of-an-obstacle-from-a-map/
+            # https://answers.ros.org/question/10268/where-am-i-in-the-map/
+            # ocuGrid.data, -1 means this position is unknown: https://answers.ros.org/question/207914/occupancy-grid-coordinates/
+            
+
+
+            pose_in_map_x, pose_in_map_y = self.abs_loc_2_map_loc(new_pose.position.x, new_pose.position.y)
+            cur_idx = self.two_d_2_one_d_idx(pose_in_map_x, pose_in_map_y, self.map_width)
+
+            while self.map.data[cur_idx] == -1:
                 new_pose.position.x = np.random.uniform(x_lb, x_ub)
                 new_pose.position.y = np.random.uniform(y_lb, y_ub)
-
-                # Evaluate if the new_pose is out of map
-
-                # https://answers.ros.org/question/201172/get-xy-coordinates-of-an-obstacle-from-a-map/
-                # https://answers.ros.org/question/10268/where-am-i-in-the-map/
-                # Width, Height and x, y: https://answers.ros.org/question/205521/robot-coordinates-in-map/
+                pose_in_map_x, pose_in_map_y = self.abs_loc_2_map_loc(new_pose.position.x, new_pose.position.y)
+                cur_idx = self.two_d_2_one_d_idx(pose_in_map_x, pose_in_map_y, self.map_width)
 
 
-                pose_in_map_x = (new_pose.position.x - self.map_origin[0]) * self.map_resolution_factor
-                pose_in_map_y = (new_pose.position.y - self.map_origin[1]) * self.map_resolution_factor
+            new_pose.position.z = 0
 
-                # assert 0 <= pose_in_map_x <= self.map_width and 0 <= pose_in_map_y <= self.map_height
+            # Orientations
+            new_pose.orientation = Quaternion()
+            q = quaternion_from_euler(0.0, 0.0, np.random.uniform(0, 361))
+            new_pose.orientation.x = q[0]
+            new_pose.orientation.y = q[1]
+            new_pose.orientation.z = q[2]
+            new_pose.orientation.w = q[3]
 
-                while not (0 <= pose_in_map_x <= self.map_width and 0 <= pose_in_map_y <= self.map_height):
-                    new_pose.position.x = np.random.uniform(x_lb, x_ub)
-                    new_pose.position.y = np.random.uniform(y_lb, y_ub)
-                    pose_in_map_x = (new_pose.position.x - self.map_origin[0]) * self.map_resolution_factor
-                    pose_in_map_y = (new_pose.position.y - self.map_origin[1]) * self.map_resolution_factor
+            # Add the particle to the cloud with initial weight 1
+            new_particle = Particle(new_pose, 1.0)
+            self.particle_cloud.append(new_particle)
 
 
-                new_pose.position.z = 0
-
-                # Orientations
-                new_pose.orientation = Quaternion()
-                q = quaternion_from_euler(0.0, 0.0, np.random.uniform(0, 361))
-                new_pose.orientation.x = q[0]
-                new_pose.orientation.y = q[1]
-                new_pose.orientation.z = q[2]
-                new_pose.orientation.w = q[3]
-
-                # Add the particle to the cloud with initial weight 1
-                new_particle = Particle(new_pose, 1.0)
-                self.particle_cloud.append(new_particle)
-
-        except:
-            print("Unexpected error in initialize_particle_cloud:", sys.exc_info()[0])
 
         self.normalize_particles()
 
