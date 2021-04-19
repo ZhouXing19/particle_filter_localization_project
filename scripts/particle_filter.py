@@ -183,8 +183,6 @@ class ParticleFilter:
                     pose_in_map_y = (new_pose.position.y - self.map_origin[1]) * self.map_resolution_factor
 
 
-
-
                 new_pose.position.z = 0
 
                 # Orientations
