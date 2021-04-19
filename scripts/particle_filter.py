@@ -82,12 +82,16 @@ class ParticleFilter:
 
         # inialize our map
         self.map = OccupancyGrid()
+        self.map_origin = None
+        self.map_height, self.map_width = None, None
+        self.map_resolution_factor = None 
 
         # the number of particles used in the particle filter
         self.num_particles = 10000
 
         # initialize the particle cloud array
         self.particle_cloud = []
+        
 
         # initialize the estimated robot pose
         self.robot_estimate = Pose()
@@ -126,8 +130,18 @@ class ParticleFilter:
 
 
     def get_map(self, data):
+        '''
+        data: OccupancyGrid
+        '''
+        print(f"in get_map, type(data) = {type(data)}") #  <class 'nav_msgs.msg._OccupancyGrid.OccupancyGrid'>
 
+        # https://www.programcreek.com/python/example/95997/nav_msgs.msg.OccupancyGrid (example 3)
         self.map = data
+        self.map_origin = np.array([data.info.origin.position.x, data.info.origin.position.y])
+        self.map_width, self.map_height = data.info.width, data.info.height
+        self.map_resolution_factor = 1 / data.info.resolution
+
+
     
 
     def initialize_particle_cloud(self):
@@ -149,6 +163,28 @@ class ParticleFilter:
                 new_pose.position = Point()
                 new_pose.position.x = np.random.uniform(x_lb, x_ub)
                 new_pose.position.y = np.random.uniform(y_lb, y_ub)
+
+                # Evaluate if the new_pose is out of map
+
+                # https://answers.ros.org/question/201172/get-xy-coordinates-of-an-obstacle-from-a-map/
+                # https://answers.ros.org/question/10268/where-am-i-in-the-map/
+                # Width, Height and x, y: https://answers.ros.org/question/205521/robot-coordinates-in-map/
+
+
+                pose_in_map_x = (new_pose.position.x - self.map_origin[0]) * self.map_resolution_factor
+                pose_in_map_y = (new_pose.position.y - self.map_origin[1]) * self.map_resolution_factor
+
+                # assert 0 <= pose_in_map_x <= self.map_width and 0 <= pose_in_map_y <= self.map_height
+
+                while not (0 <= pose_in_map_x <= self.map_width and 0 <= pose_in_map_y <= self.map_height):
+                    new_pose.position.x = np.random.uniform(x_lb, x_ub)
+                    new_pose.position.y = np.random.uniform(y_lb, y_ub)
+                    pose_in_map_x = (new_pose.position.x - self.map_origin[0]) * self.map_resolution_factor
+                    pose_in_map_y = (new_pose.position.y - self.map_origin[1]) * self.map_resolution_factor
+
+
+
+
                 new_pose.position.z = 0
 
                 # Orientations
