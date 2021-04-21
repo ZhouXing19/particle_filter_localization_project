@@ -395,7 +395,7 @@ class ParticleFilter:
             
             # Create a new particle based on the new pose, and replace the
             # Old particle with the new one.
-            new_particle = Particle(new_pose, this_particle.weight)
+            new_particle = Particle(new_pose, this_particle.w)
             self.particle_cloud[idx] = new_particle
 
             
