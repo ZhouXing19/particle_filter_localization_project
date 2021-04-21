@@ -370,9 +370,35 @@ class ParticleFilter:
         delta_x, delta_y, delta_yaw = cur_x - prev_x, cur_y - prev_y, cur_yaw - prev_yaw
 
         # 2. For all particles, apply the delta 
-
         for idx in range(len(self.particle_cloud)):
-            new_pose = 
+
+            # Get the original info of the particle at this idx
+            this_particle = self.particle_cloud[idx]
+            this_pose = this_particle.pose
+            this_yaw = get_yaw_from_pose(this_pose)
+
+            # Apply simple addition to get the updated position / orientation
+            new_x = this_pose.position.x + delta_x
+            new_y = this_pose.position.y + delta_y
+            new_yaw = this_yaw + delta_yaw
+            q = quaternion_from_euler(0, 0, new_yaw)
+
+            # Create a new pose with the updated configurations
+            new_pose = Pose()
+            new_pose.orientation = Quaternion()
+            new_pose.position.x = new_x
+            new_pose.position.y = new_y
+            new_pose.orientation.x = q[0]
+            new_pose.orientation.y = q[1]
+            new_pose.orientation.z = q[2]
+            new_pose.orientation.w = q[3]
+            
+            # Create a new particle based on the new pose, and replace the
+            # Old particle with the new one.
+            new_particle = Particle(new_pose, this_particle.weight)
+            self.particle_cloud[idx] = new_particle
+
+            
 
 
 
