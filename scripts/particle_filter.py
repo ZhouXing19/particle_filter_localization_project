@@ -88,6 +88,7 @@ class ParticleFilter:
         self.ang_mvmt_threshold = (np.pi / 6)
 
         self.odom_pose_last_motion_update = None
+        self.odom_pose = None # Will update this in self.robot_scan_received()
 
 
         # Setup publishers and subscribers
@@ -186,14 +187,14 @@ class ParticleFilter:
         # calculate the pose of the laser distance sensor 
         p = PoseStamped(
             header=Header(stamp=rospy.Time(0),
-                          frame_id=data.header.frame_id))
+            frame_id=data.header.frame_id))
 
         self.laser_pose = self.tf_listener.transformPose(self.base_frame, p)
 
         # determine where the robot thinks it is based on its odometry
         p = PoseStamped(
             header=Header(stamp=data.header.stamp,
-                          frame_id=self.base_frame),
+            frame_id=self.base_frame),
             pose=Pose())
 
         self.odom_pose = self.tf_listener.transformPose(self.odom_frame, p)
@@ -259,6 +260,18 @@ class ParticleFilter:
         # all of the particles correspondingly
 
         # TODO
+        # 1. Get the delta in x, y and yaw
+        cur_x, cur_y = self.odom_pose.pose.position.x, self.odom_pose.pose.position.y
+        prev_x, prev_y = self.odom_pose_last_motion_update.pose.position.x, self.odom_pose_last_motion_update.pose.position.y
+        cur_yaw = get_yaw_from_pose(self.odom_pose.pose)
+        prev_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
+
+        delta_x, delta_y, delta_yaw = cur_x - prev_x, cur_y - prev_y, cur_yaw - prev_yaw
+
+        # 2. For all particles, apply the delta 
+
+        for idx in range(len(self.particle_cloud)):
+            new_pose = 
 
 
 
