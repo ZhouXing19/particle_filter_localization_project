@@ -266,6 +266,8 @@ class ParticleFilter:
     def resample_particles(self):
         # TODO
 
+        # Use draw_random_sample() here
+
         return
 
 
@@ -324,7 +326,7 @@ class ParticleFilter:
 
                 # This is where the main logic of the particle filter is carried out
 
-                self.update_particles_with_motion_model()
+                self.update_particles_with_motion_model(curr_x - old_x, curr_y - old_y, curr_yaw - old_yaw)
 
                 self.update_particle_weights_with_measurement_model(data)
 
@@ -353,34 +355,32 @@ class ParticleFilter:
         return
 
 
-        
-
-    def update_particles_with_motion_model(self):
+    def update_particles_with_motion_model(self, dx, dy, dyaw):
 
         # based on the how the robot has moved (calculated from its odometry), we'll  move
         # all of the particles correspondingly
 
         # TODO
-        # 1. Get the delta in x, y and yaw
-        cur_x, cur_y = self.odom_pose.pose.position.x, self.odom_pose.pose.position.y
+        # 1. Get the delta in x, y and yaw (we can also get this from the parameters)
+        '''cur_x, cur_y = self.odom_pose.pose.position.x, self.odom_pose.pose.position.y
         prev_x, prev_y = self.odom_pose_last_motion_update.pose.position.x, self.odom_pose_last_motion_update.pose.position.y
         cur_yaw = get_yaw_from_pose(self.odom_pose.pose)
         prev_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
 
-        delta_x, delta_y, delta_yaw = cur_x - prev_x, cur_y - prev_y, cur_yaw - prev_yaw
+        dx, dy, dyaw = cur_x - prev_x, cur_y - prev_y, cur_yaw - prev_yaw'''
 
         # 2. For all particles, apply the delta 
-        for idx in range(len(self.particle_cloud)):
+        for curr_particle in self.particle_cloud:
 
-            # Get the original info of the particle at this idx
-            this_particle = self.particle_cloud[idx]
+            # Get the original info of the particle
+            this_particle = curr_particle
             this_pose = this_particle.pose
             this_yaw = get_yaw_from_pose(this_pose)
 
             # Apply simple addition to get the updated position / orientation
-            new_x = this_pose.position.x + delta_x
-            new_y = this_pose.position.y + delta_y
-            new_yaw = this_yaw + delta_yaw
+            new_x = this_pose.position.x + dx
+            new_y = this_pose.position.y + dy
+            new_yaw = this_yaw + dyaw
             q = quaternion_from_euler(0, 0, new_yaw)
 
             # Create a new pose with the updated configurations
@@ -396,7 +396,9 @@ class ParticleFilter:
             # Create a new particle based on the new pose, and replace the
             # Old particle with the new one.
             new_particle = Particle(new_pose, this_particle.w)
-            self.particle_cloud[idx] = new_particle
+            curr_particle = new_particle
+
+        return
 
             
 
