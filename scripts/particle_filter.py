@@ -265,6 +265,12 @@ class ParticleFilter:
 
     def resample_particles(self):
         # TODO
+        # np.random.choice(arr, n, prob)
+        to_select = self.particle_cloud
+        select_num = self.num_particles
+        normed_weights = [particle.w for particle in self.particle_cloud]
+        res = np.random.choice(to_select, select_num, normed_weights)
+        self.particle_cloud = res
 
         # Use draw_random_sample() here
 
@@ -346,6 +352,9 @@ class ParticleFilter:
     def update_estimated_robot_pose(self):
         # based on the particles within the particle cloud, update the robot pose estimate
         
+        max_w_particle = max([particle for particle in self.particle_cloud], key = lambda x: x.w)
+        self.robot_estimate = max_w_particle.pose
+
         # TODO
         return
 
