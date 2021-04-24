@@ -22,6 +22,16 @@ from random import randint, random
 from likelihood_field import LikelihoodField
 import sys
 
+DIRECTIONS = [0, 90, 180, 270]
+
+def compute_prob_zero_centered_gaussian(dist, sd):
+    # This is copied from class 6th script
+    """ Takes in distance from zero (dist) and standard deviation (sd) for gaussian
+        and returns probability (likelihood) of observation """
+    c = 1.0 / (sd * math.sqrt(2 * math.pi))
+    prob = c * math.exp((-math.pow(dist,2))/(2 * math.pow(sd, 2)))
+    return prob
+
 
 
 def get_yaw_from_pose(p):
@@ -122,11 +132,15 @@ class ParticleFilter:
         self.tf_listener = TransformListener()
         self.tf_broadcaster = TransformBroadcaster()
 
+        # Placeholder for the likelihood field
+        self.likelihood_field = None
 
         # intialize the particle cloud
         self.initialize_particle_cloud()
 
         self.initialized = True
+
+        
 
 
 
@@ -174,10 +188,10 @@ class ParticleFilter:
 
         
         # Need to create an instance of the LikelihoodField class before calling its methods
-        lf = LikelihoodField()
+        self.likelihood_field = LikelihoodField()
 
         # Get the upper and lower x and y range
-        ((x_lb, x_ub), (y_lb, y_ub)) = lf.get_obstacle_bounding_box()
+        ((x_lb, x_ub), (y_lb, y_ub)) = self.likelihood_field.get_obstacle_bounding_box()
 
         # For each particle, set a random position and orientation (uniformly distributed)
         for i in range(self.num_particles):
@@ -360,7 +374,21 @@ class ParticleFilter:
 
     def update_particle_weights_with_measurement_model(self, data):
 
-        # TODO
+        for idx, p in enumerate(self.particle_cloud):
+            q = 1
+            for idx in range(len(DIRECTIONS)):
+                direction_idx = DIRECTIONS[idx]
+                z_t_k = data.ranges[direction_idx]
+                if z_t_k < data.range_max:
+                    x_z_t_k = p.pose.orientation.x + z_t_k * math.cos(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
+                    y_z_t_k = p.pose.orientation.y + z_t_k * math.sin(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
+                    dist = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
+                    p = compute_prob_zero_centered_gaussian(dist, 0.1)
+                    q *= p
+            
+            self.particle_cloud[idx].w = q
+        
+
         return
 
 
