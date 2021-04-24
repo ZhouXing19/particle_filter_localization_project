@@ -22,6 +22,8 @@ from random import randint, random
 from likelihood_field import LikelihoodField
 import sys
 
+from copy import deepcopy
+
 DIRECTIONS = [0, 90, 180, 270]
 
 def compute_prob_zero_centered_gaussian(dist, sd):
@@ -280,12 +282,12 @@ class ParticleFilter:
     def resample_particles(self):
         # TODO
         # np.random.choice(arr, n, prob)
-        to_select = self.particle_cloud
+        to_select_idx = list(range(len(self.particle_cloud)))
         select_num = self.num_particles
         normed_weights = [particle.w for particle in self.particle_cloud]
-        res = np.random.choice(to_select, select_num, normed_weights)
+        selected_idxs = np.random.choice(to_select_idx, select_num, normed_weights)
+        res = [deepcopy(self.particle_cloud[idx]) for idx in selected_idxs]
         self.particle_cloud = res
-
         # Use draw_random_sample() here
 
         return
