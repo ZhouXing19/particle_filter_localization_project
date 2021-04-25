@@ -78,25 +78,25 @@ Through the likelihood field algorithm, we gradually localize the particles in t
 
 **Code location:** Lines 186-242
 
-**Code description:** Using methods from the LikelihoodField class, we establish a bounding box on the map according to the location of obstacles. For each of 10,000 particles (value of `num_particles`), we then initialize the particle's pose to a random x and y value within the bounding box. We check if this pose is outside of the bounds. If it is, we reinitialize its pose until it acquires an x and y value within the bounding box. We set the yaw of the particle equal to a random heading between 0 and 360 degrees, converting the (x, y, theta) of the particle into a quaternion. We create a new instance of the Particle class using this particle's pose and orientation, assigning it an arbitrary weight of 1 to begin with. This instance is appended to `particle_cloud`. Once all of the particles have been initialized, the weights of the particles in the particle cloud are then normalized using `normalize_particles`, and the particle cloud is published.
+**Code description:** This step is handled by `initialize_particle_cloud()`. Using methods from the LikelihoodField class, we establish a bounding box on the map according to the location of obstacles. For each of 10,000 particles (value of `num_particles`), we then initialize the particle's pose to a random x and y value within the bounding box. We check if this pose is outside of the bounds. If it is, we reinitialize its pose until it acquires an x and y value within the bounding box. We set the yaw of the particle equal to a random heading between 0 and 360 degrees, converting the (x, y, theta) of the particle into a quaternion. We create a new instance of the Particle class using this particle's pose and orientation, assigning it an arbitrary weight of 1 to begin with. This instance is appended to `particle_cloud`. Once all of the particles have been initialized, the weights of the particles in the particle cloud are then normalized using `normalize_particles`, and the particle cloud is published.
 
 ### Movement model
 
 **Code location:** Lines 398-437 
 
-**Code description:** 
+**Code description:** This step is handled by `update_particles_with_motion_model()`. From the robot's odometry, we pass in its change in x-position (`dx`), change in y-position (`dy`), and change in z-orientation (`dyaw`) as arguments to our function. For each particle in our particle cloud, we simply change its orientation by adding `dyaw` to the particle's current yaw. The position change of the particle is a little more complicated, where we use trigonometry to make sure the particle moves in the direction of its heading, not in the exact same direction as the robot. With the new x-position, y-position, and yaw for the particle, we create a new Particle instance with these values for its pose attribute and assign it to the current particle.
 
 ### Measurement model
 
-**Code location:**
+**Code location:** Lines 378-395
 
-**Code description:**
+**Code description:** This step is handled by `update_particle_weights_with_measurement_model()`. Essentially, we used the likelihood field for ranges finders algorithm from class in order to update each particle's importance weight. **More description needed**
 
 ### Resampling
 
 **Code location:** Lines 280-293
 
-**Code description:**
+**Code description:** This step is handled by `resample_particles()`. Our function uses `draw_random_sample()` to draw a resampling of particles from our particle cloud based on particle weights. `draw_random_sample()` uses `np.random.choice()` to choose a random array of `len(self.particle_cloud)` particles using the particle weights as probabilities passed as an argument. The returned array from `draw_random_sample()` is copied using `deepcopy` into the original particle cloud. 
 
 ### Incorporation of noise
 
@@ -108,7 +108,7 @@ Through the likelihood field algorithm, we gradually localize the particles in t
 
 **Code location:** Lines 368-376
 
-**Code description:**
+**Code description:** This step is handled by `update_estimated_robot_pose()`. The function takes the particle of maximum importance weight from our particle cloud and sets the robot's estimated pose to this particle's pose.
 
 ### Optimization of parameters
 
@@ -117,6 +117,7 @@ Through the likelihood field algorithm, we gradually localize the particles in t
 **Code description:**
 
 ## Challenges
+One of our challenges at the start was getting the particles to initialize within the bounds of the house; originally, we had particles spawning at any location on the map, including atop obstacles and outside the house. We had to refer to some online ROS resources in order to figure out the details of `OccupancyGrid` and how we can use the values returned from the grid's data to determine whether or not a particle is spawning in an invalid area.  
 
 ## Future work
 
