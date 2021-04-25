@@ -60,6 +60,8 @@ def draw_random_sample(arr):
     return new_arr
 
 
+
+
 class Particle:
 
     def __init__(self, pose, w):
@@ -293,6 +295,7 @@ class ParticleFilter:
         return
 
 
+
     def robot_scan_received(self, data):
 
         # wait until initialization is complete
@@ -376,6 +379,14 @@ class ParticleFilter:
         return
 
     def update_particle_weights_with_measurement_model(self, data):
+        '''
+            x_z_t_k = p.pose.orientation.x + z_t_k * math.cos(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
+            AttributeError: 'float' object has no attribute 'pose'
+
+        '''
+        
+        demo_p = self.particle_cloud[0]
+        print(f"type of p in self.particle_cloud: {type(demo_p)}")
 
         for idx, p in enumerate(self.particle_cloud):
             q = 1
@@ -383,11 +394,12 @@ class ParticleFilter:
                 direction_idx = DIRECTIONS[idx]
                 z_t_k = data.ranges[direction_idx]
                 if z_t_k < data.range_max:
+                    assert type(p) != float
                     x_z_t_k = p.pose.orientation.x + z_t_k * math.cos(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
                     y_z_t_k = p.pose.orientation.y + z_t_k * math.sin(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
                     dist = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
-                    p = compute_prob_zero_centered_gaussian(dist, 0.1)
-                    q *= p
+                    prob = compute_prob_zero_centered_gaussian(dist, 0.1)
+                    q *= prob
             
             self.particle_cloud[idx].w = q
         
