@@ -65,3 +65,59 @@ We will sample noise component from a plain gaussian distribution for each parti
 **`update_estimated_robot_pose()`: April 24**
 
 Due Apr 26, 11:00am CST
+
+## Objectives
+The goal of our project is to use particle filter localization in order to estimate the location of our robot within the map as accurately as possible. To increase accuracy, we want to be able to account for noise in the environment, as well.
+
+## High-level description
+Through the likelihood field algorithm, we gradually localize the particles in the map into one central cloud that tracks the robot's actual location.
+
+## Steps of Particle Filter Localization
+
+### Initialization of particle cloud
+
+**Code location:** Lines 186-242
+
+**Code description:** Using methods from the LikelihoodField class, we establish a bounding box on the map according to the location of obstacles. For each of 10,000 particles (value of `num_particles`), we then initialize the particle's pose to a random x and y value within the bounding box. We check if this pose is outside of the bounds. If it is, we reinitialize its pose until it acquires an x and y value within the bounding box. We set the yaw of the particle equal to a random heading between 0 and 360 degrees, converting the (x, y, theta) of the particle into a quaternion. We create a new instance of the Particle class using this particle's pose and orientation, assigning it an arbitrary weight of 1 to begin with. This instance is appended to `particle_cloud`. Once all of the particles have been initialized, the weights of the particles in the particle cloud are then normalized using `normalize_particles`, and the particle cloud is published.
+
+### Movement model
+
+**Code location:** Lines 398-437 
+
+**Code description:** 
+
+### Measurement model
+
+**Code location:**
+
+**Code description:**
+
+### Resampling
+
+**Code location:** Lines 280-293
+
+**Code description:**
+
+### Incorporation of noise
+
+**Code location:**
+
+**Code description:**
+
+### Estimating robot pose
+
+**Code location:** Lines 368-376
+
+**Code description:**
+
+### Optimization of parameters
+
+**Code location:**
+
+**Code description:**
+
+## Challenges
+
+## Future work
+
+## Takeaways
