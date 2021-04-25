@@ -54,12 +54,10 @@ def draw_random_sample(arr):
     We recommend that you fill in this function using random_sample.
     """
     # TODO
-    # Uses random_sample function from numpy.random
-    #sample = self.num_particles * random_sample() + 1
 
     # Uses random.choice to populate a random sample of num_particles elements from particle_cloud based on p
-    arr = np.random.choice(arr, size=len(arr), p=[part.w for part in arr])
-    return
+    new_arr = np.random.choice(arr, size=len(arr), p=[part.w for part in arr])
+    return new_arr
 
 
 class Particle:
@@ -109,7 +107,7 @@ class ParticleFilter:
         self.robot_estimate = Pose()
 
         # set threshold values for linear and angular movement before we preform an update
-        self.lin_mvmt_threshold = 0.2        
+        self.lin_mvmt_threshold = 0.1        
         self.ang_mvmt_threshold = (np.pi / 6)
 
         self.odom_pose_last_motion_update = None
@@ -281,14 +279,16 @@ class ParticleFilter:
 
     def resample_particles(self):
         # TODO
-        # np.random.choice(arr, n, prob)
-        to_select_idx = list(range(len(self.particle_cloud)))
+        # Draw a random sample of particles based off of particle weights
+        new_particle_cloud = draw_random_sample(self.particle_cloud)
+
+        '''to_select_idx = list(range(len(self.particle_cloud)))
         select_num = self.num_particles
         normed_weights = [particle.w for particle in self.particle_cloud]
-        selected_idxs = np.random.choice(to_select_idx, select_num, normed_weights)
-        res = [deepcopy(self.particle_cloud[idx]) for idx in selected_idxs]
+        selected_idxs = np.random.choice(to_select_idx, select_num, normed_weights)'''
+        # Deepcopy each particle in the resampling into particle_cloud
+        res = [deepcopy(particle) for particle in new_particle_cloud]
         self.particle_cloud = res
-        # Use draw_random_sample() here
 
         return
 
@@ -368,6 +368,7 @@ class ParticleFilter:
     def update_estimated_robot_pose(self):
         # based on the particles within the particle cloud, update the robot pose estimate
         
+        # Takes the pose of the particle with maximum weight and assigns it to robot_estimate
         max_w_particle = max([particle for particle in self.particle_cloud], key = lambda x: x.w)
         self.robot_estimate = max_w_particle.pose
 
@@ -400,13 +401,7 @@ class ParticleFilter:
         # all of the particles correspondingly
 
         # TODO
-        # 1. Get the delta in x, y and yaw (we can also get this from the parameters)
-        '''cur_x, cur_y = self.odom_pose.pose.position.x, self.odom_pose.pose.position.y
-        prev_x, prev_y = self.odom_pose_last_motion_update.pose.position.x, self.odom_pose_last_motion_update.pose.position.y
-        cur_yaw = get_yaw_from_pose(self.odom_pose.pose)
-        prev_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
-
-        dx, dy, dyaw = cur_x - prev_x, cur_y - prev_y, cur_yaw - prev_yaw'''
+        # 1. Get the delta in x, y and yaw from parameters
 
         # 2. For all particles, apply the delta 
         for curr_particle in self.particle_cloud:
@@ -416,11 +411,13 @@ class ParticleFilter:
             this_pose = this_particle.pose
             this_yaw = get_yaw_from_pose(this_pose)
 
-            # Apply simple addition to get the updated position / orientation
-            new_x = this_pose.position.x + dx
-            new_y = this_pose.position.y + dy
+            # Apply simple addition to get the updated orientation
             new_yaw = this_yaw + dyaw
             q = quaternion_from_euler(0, 0, new_yaw)
+
+            # TODO: Apply trigonometric transformations to get updated position, since particles are at angles
+            new_x = this_pose.position.x + dx # + math.tan(new_yaw) * dx
+            new_y = this_pose.position.y + dy 
 
             # Create a new pose with the updated configurations
             new_pose = Pose()
