@@ -24,7 +24,13 @@ import sys
 
 from copy import deepcopy
 
-DIRECTIONS = [0, 90, 180, 270]
+def noise_in_range(mean=0, sd=1,  upper_bound=10 , lower_bound=0):
+    noise = np.random.normal(loc=mean, scale=sd)
+    if noise > upper_bound:
+        return upper_bound
+    elif noise < lower_bound:
+        return lower_bound
+    return noise
 
 def compute_prob_zero_centered_gaussian(dist, sd):
     # This is copied from class 6th script
@@ -53,12 +59,10 @@ def draw_random_sample(arr):
     """ Draws a random sample of n elements from a given list of choices and their specified probabilities.
     We recommend that you fill in this function using random_sample.
     """
-    # TODO
 
-    # Uses random.choice to populate a random sample of num_particles elements from particle_cloud based on p
-    new_arr = np.random.choice(arr, size=len(arr), p=[part.w for part in arr])
+    selected_idxs = np.random.choice(range(len(arr)), size=len(arr), p=[part.w for part in arr])
+    new_arr = [arr[idx] for idx in selected_idxs]
     return new_arr
-
 
 
 
@@ -99,7 +103,7 @@ class ParticleFilter:
         self.map_resolution_factor = None 
 
         # the number of particles used in the particle filter
-        self.num_particles = 10000
+        self.num_particles = 1000
 
         # initialize the particle cloud array
         self.particle_cloud = []
@@ -280,19 +284,13 @@ class ParticleFilter:
 
 
     def resample_particles(self):
-        # TODO
-        # Draw a random sample of particles based off of particle weights
+        # TODO 
+        # Draw a random sample of partƒicles based off of particle weights
         new_particle_cloud = draw_random_sample(self.particle_cloud)
-
-        '''to_select_idx = list(range(len(self.particle_cloud)))
-        select_num = self.num_particles
-        normed_weights = [particle.w for particle in self.particle_cloud]
-        selected_idxs = np.random.choice(to_select_idx, select_num, normed_weights)'''
-        # Deepcopy each particle in the resampling into particle_cloud
-        res = [deepcopy(particle) for particle in new_particle_cloud]
-        self.particle_cloud = res
+        self.particle_cloud = new_particle_cloud
 
         return
+
 
 
 
@@ -352,6 +350,7 @@ class ParticleFilter:
                 # This is where the main logic of the particle filter is carried out
 
                 self.update_particles_with_motion_model(curr_x - old_x, curr_y - old_y, curr_yaw - old_yaw)
+                #self.update_particles_with_motion_model()
 
                 self.update_particle_weights_with_measurement_model(data)
 
@@ -378,74 +377,74 @@ class ParticleFilter:
         # TODO
         return
 
+
+
     def update_particle_weights_with_measurement_model(self, data):
-        '''
-            x_z_t_k = p.pose.orientation.x + z_t_k * math.cos(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
-            AttributeError: 'float' object has no attribute 'pose'
 
-        '''
         
-        demo_p = self.particle_cloud[0]
-        print(f"type of p in self.particle_cloud: {type(demo_p)}")
+        DIRECTIONS = [0, 90, 180, 270]
 
-        for idx, p in enumerate(self.particle_cloud):
+        for i, p in enumerate(self.particle_cloud):
             q = 1
-            for idx in range(len(DIRECTIONS)):
-                direction_idx = DIRECTIONS[idx]
-                z_t_k = data.ranges[direction_idx]
-                if z_t_k < data.range_max:
-                    assert type(p) != float
-                    x_z_t_k = p.pose.orientation.x + z_t_k * math.cos(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
-                    y_z_t_k = p.pose.orientation.y + z_t_k * math.sin(get_yaw_from_pose(p.pose) + direction_idx * 3.14 / 180)
-                    dist = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
-                    prob = compute_prob_zero_centered_gaussian(dist, 0.1)
-                    q *= prob
-            
-            self.particle_cloud[idx].w = q
-        
 
+            for direction in DIRECTIONS:
+                z_t_k = data.ranges[direction]
+
+                if (z_t_k < data.range_max):
+                    x_z_t_k = p.pose.position.x + z_t_k * math.cos(get_yaw_from_pose(p.pose) + (direction * 3.14/180))
+                    y_z_t_k = p.pose.position.y + z_t_k * math.sin(get_yaw_from_pose(p.pose) + (direction * 3.14/180))
+                    
+                    dist = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
+                    
+                    prob = compute_prob_zero_centered_gaussian(dist, 0.4)
+                    if (math.isnan(prob)): 
+                        prob = 0.1 
+                    q *= prob
+            self.particle_cloud[i].w = q
         return
+
+    
+
 
 
     def update_particles_with_motion_model(self, dx, dy, dyaw):
+        """Upddate the particle cloud's pose given turtlebot's odometry
+        """
+        
 
-        # based on the how the robot has moved (calculated from its odometry), we'll  move
-        # all of the particles correspondingly
+        for i, p in enumerate(self.particle_cloud):
 
-        # TODO
-        # 1. Get the delta in x, y and yaw from parameters
 
-        # 2. For all particles, apply the delta 
-        for curr_particle in self.particle_cloud:
+            yaw_noise = noise_in_range(0, 0.1, 1, -1)
+            x_noise = noise_in_range(0, 0.1, 1, -1)
+            y_noise = noise_in_range(0, 0.1, 1, -1)
 
-            # Get the original info of the particle
-            this_particle = curr_particle
-            this_pose = this_particle.pose
-            this_yaw = get_yaw_from_pose(this_pose)
+            this_x = p.pose.position.x
+            this_y = p.pose.position.y
 
-            # Apply simple addition to get the updated orientation
-            new_yaw = this_yaw + dyaw
-            q = quaternion_from_euler(0, 0, new_yaw)
+            yaw = get_yaw_from_pose(p.pose)
 
-            # TODO: Apply trigonometric transformations to get updated position, since particles are at angles
-            new_x = this_pose.position.x + dx # + math.tan(new_yaw) * dx
-            new_y = this_pose.position.y + dy 
+            dtheta = (dyaw) * (math.pi / 180.0)
 
-            # Create a new pose with the updated configurations
+            new_yaw = yaw + dyaw + yaw_noise
+
+            new_x = this_x + math.sin(dtheta) * dy + math.cos(dtheta) * dx + x_noise
+            new_y = this_y + math.sin(dtheta) * dy + math.cos(dtheta) * dy + y_noise
+            
             new_pose = Pose()
-            new_pose.orientation = Quaternion()
             new_pose.position.x = new_x
             new_pose.position.y = new_y
+
+            q = quaternion_from_euler(0, 0 , new_yaw)
             new_pose.orientation.x = q[0]
             new_pose.orientation.y = q[1]
             new_pose.orientation.z = q[2]
             new_pose.orientation.w = q[3]
             
-            # Create a new particle based on the new pose, and replace the
-            # Old particle with the new one.
-            new_particle = Particle(new_pose, this_particle.w)
-            curr_particle = new_particle
+            weight = p.w
 
+            self.particle_cloud[i] = Particle(new_pose, weight)
+            
         return
 
             
