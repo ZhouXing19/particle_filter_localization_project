@@ -173,12 +173,27 @@ class ParticleFilter:
         self.map_resolution_factor = 1 / data.info.resolution
 
     def two_d_2_one_d_idx(self, x, y, width):
-        # The data are saved as 1-D tuples. To convert the 2-D tuple to 1-D: 
-        # https://github.com/RobotTeaching/COMP4034/wiki/Workshop-6:-Minitask-4-(Marked)#task-4-keep-track-of-your-moves-via-mapping
+        '''
+        @para: x, y, width: float
+        @return float
+        The mapping from a (x, y) index in the pose.position to the index in
+        the ocuGrid.data, which is a 1-D array.
+        Reference: # https://github.com/RobotTeaching/COMP4034/wiki/Workshop-6:-Minitask-4-(Marked)#task-4-keep-track-of-your-moves-via-mapping
+        '''
         return x + y * width
 
-    # Translates the absolute location into the location on the map
+
     def abs_loc_2_map_loc(self, x, y):
+        '''
+        @para: x: float, pose's absolute position in x
+        @para: y: float, pose's absolute position in y
+        @return: pose_in_map_x: float, pose's position in map along x direction
+        @return: pose_in_map_y: float, pose's position in map along y direction
+
+        Translates the absolute location into the location on the map
+        This is based on some references from ros answers: https://answers.ros.org/question/10268/where-am-i-in-the-map/
+
+        '''
         pose_in_map_x = int((x - self.map_origin[0]) * self.map_resolution_factor)
         pose_in_map_y = int((y - self.map_origin[1]) * self.map_resolution_factor)
         return pose_in_map_x, pose_in_map_y
@@ -194,7 +209,7 @@ class ParticleFilter:
 
         # For each particle, set a random position and orientation (uniformly distributed)
         for i in range(self.num_particles):
-            # https://www.programcreek.com/python/example/88501/geometry_msgs.msg.Pose
+            
             new_pose = Pose()
 
             # Assign a random x and y position to the particle
@@ -203,21 +218,27 @@ class ParticleFilter:
             new_pose.position.y = np.random.uniform(y_lb, y_ub)
 
             # Evaluate if the new_pose is out of map
-
-            # Our references for the following code:
-            # https://answers.ros.org/question/201172/get-xy-coordinates-of-an-obstacle-from-a-map/
-            # https://answers.ros.org/question/10268/where-am-i-in-the-map/
-            # ocuGrid.data, -1 means this position is unknown: https://answers.ros.org/question/207914/occupancy-grid-coordinates/
-            
+            # The data attribute of the ocuGrid is a 1-d array 
+            # The mapping from a (x, y) index in the pose.position to 
+            # this 1-d array is according to self.two_d_2_one_d_idx()
+        
             pose_in_map_x, pose_in_map_y = self.abs_loc_2_map_loc(new_pose.position.x, new_pose.position.y)
             cur_idx = self.two_d_2_one_d_idx(pose_in_map_x, pose_in_map_y, self.map_width)
 
             # While the particle is out of bounds / in an invalid position, respawn the particle with a new random x and y position
-            while self.map.data[cur_idx] == -1:
+            while self.map.data[cur_idx] == -1: 
+
+                # Set the x, y axis position of the new_pose according to a uniform distribution
                 new_pose.position.x = np.random.uniform(x_lb, x_ub)
                 new_pose.position.y = np.random.uniform(y_lb, y_ub)
+
+                # Convert the position to the map location
                 pose_in_map_x, pose_in_map_y = self.abs_loc_2_map_loc(new_pose.position.x, new_pose.position.y)
+
+                # Convert the 2-d map location to a 1-d index in the data array
                 cur_idx = self.two_d_2_one_d_idx(pose_in_map_x, pose_in_map_y, self.map_width)
+
+                # Go back to the while loop to check if the sampled position is valid in map. If not, resample again under the same distribution.
 
 
             new_pose.position.z = 0
@@ -381,15 +402,25 @@ class ParticleFilter:
             for direction in DIRECTIONS:
                 z_t_k = data.ranges[direction]
 
+                # Only consider the case when the distance is close enough
                 if (z_t_k < data.range_max):
+
+                    # translate the laser scan reading data -> particle's locations
                     x_z_t_k = p.pose.position.x + z_t_k * math.cos(get_yaw_from_pose(p.pose) + (direction * 3.14/180))
                     y_z_t_k = p.pose.position.y + z_t_k * math.sin(get_yaw_from_pose(p.pose) + (direction * 3.14/180))
                     
+                    # find the distance to the closest obstacle
                     dist = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
                     
+                    # get the probability by a gaussian distribution
+                    # The sd = 0.4 is hard-coded. It seems that given a very small sd it became harder to converge
                     prob = compute_prob_zero_centered_gaussian(dist, 0.4)
+
+                    # Following suggestions from slack, when the distance is given as a nan, we choose to assign a small value to it
                     if (math.isnan(prob)): 
                         prob = 0.1 
+                    
+                    #aggregate all probability by multiplication
                     q *= prob
             self.particle_cloud[i].w = q
 
@@ -408,6 +439,7 @@ class ParticleFilter:
         for i, p in enumerate(self.particle_cloud):
 
             # Generate artificial (Gaussian) noise for the position and orientation of the particle
+            # These parameters are hard-coded.
             yaw_noise = noise_in_range(0, 0.1, 1, -1)
             x_noise = noise_in_range(0, 0.1, 1, -1)
             y_noise = noise_in_range(0, 0.1, 1, -1)
