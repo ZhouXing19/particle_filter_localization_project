@@ -66,6 +66,10 @@ We will sample noise component from a plain gaussian distribution for each parti
 
 Due Apr 26, 11:00am CST
 
+## Demo gif (10x speed up)
+
+<img src="gif/particle.gif" width=800>
+
 ## Objectives
 The goal of our project is to use particle filter localization in order to estimate the location of our robot within the map as accurately as possible. To increase accuracy, we want to be able to account for noise in the environment, as well.
 
